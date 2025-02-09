@@ -27,6 +27,43 @@ RUN echo "xdebug.mode=develop,coverage,debug" >> /usr/local/etc/php/conf.d/docke
     && echo "xdebug.log_level=0" >> /usr/local/etc/php/conf.d/docker-php-ext-xdebug.ini \
     && echo "xdebug.client_host=host.docker.internal" >> /usr/local/etc/php/conf.d/docker-php-ext-xdebug.ini \
     && echo "xdebug.client_port=9000" >> /usr/local/etc/php/conf.d/docker-php-ext-xdebug.ini
+# Apache config --------------------------------------------------------------------------------------------------------
+RUN a2enmod rewrite ssl \
+    && echo "ServerName localhost" >> /etc/apache2/apache2.conf \
+    && sed -i "s|SSLEngine on|SSLEngine on\nSSLVerifyClient none|g" /etc/apache2/sites-available/default-ssl.conf \
+    && sed -i "s|DocumentRoot /var/www/html|DocumentRoot /var/www/html/public|g" /etc/apache2/sites-available/000-default.conf \
+    && sed -i "s|<Directory /var/www/html>|<Directory /var/www/html/public>|g" /etc/apache2/apache2.conf \
+    && sed -i "s|SSLProtocol all|SSLProtocol all -SSLv2 -SSLv3 -TLSv1 -TLSv1.1|g" /etc/apache2/mods-enabled/ssl.conf \
+    && sed -i "s|SSLHonorCipherOrder on|SSLHonorCipherOrder on\nSSLCipherSuite HIGH:!aNULL:!MD5|g" /etc/apache2/mods-enabled/ssl.conf \
+    && sed -i "s|www-data|lion|g" /etc/apache2/envvars \
+    && openssl req -x509 -nodes -days 365 -newkey rsa:4096 \
+        -keyout /etc/ssl/private/apache-selfsigned.key \
+        -out /etc/ssl/certs/apache-selfsigned.crt \
+        -subj "/C=US/ST=State/L=City/O=Lion-Packages/OU=Lion/CN=localhost/emailAddress=root@dev.com" \
+    && cp /etc/ssl/certs/apache-selfsigned.crt /usr/local/share/ca-certificates/selfsigned.crt \
+    && update-ca-certificates \
+    && echo "\n\
+<VirtualHost *:80> \n\
+    ServerName localhost \n\
+    DocumentRoot /var/www/html/public \n\
+    SSLEngine on \n\
+    SSLCertificateFile /etc/ssl/certs/apache-selfsigned.crt \n\
+    SSLCertificateKeyFile /etc/ssl/private/apache-selfsigned.key \n\
+    ErrorLog \${APACHE_LOG_DIR}/error.log \n\
+    CustomLog \${APACHE_LOG_DIR}/access.log combined \n\
+</VirtualHost> \n\
+\n\
+<VirtualHost *:443> \n\
+    ServerName localhost \n\
+    DocumentRoot /var/www/html/public \n\
+    SSLEngine on \n\
+    SSLCertificateFile /etc/ssl/certs/apache-selfsigned.crt \n\
+    SSLCertificateKeyFile /etc/ssl/private/apache-selfsigned.key \n\
+    ErrorLog \${APACHE_LOG_DIR}/error.log \n\
+    CustomLog \${APACHE_LOG_DIR}/access.log combined \n\
+</VirtualHost> \n\
+    " > /etc/apache2/sites-available/default-ssl.conf \
+    && a2ensite default-ssl
 # ----------------------------------------------------------------------------------------------------------------------
 USER lion
 
