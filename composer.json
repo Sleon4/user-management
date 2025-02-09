@@ -8,5 +8,13 @@
             "App\\": "src/"
         }
     },
-    "require": {}
+    "autoload-dev": {
+        "psr-4": {
+            "Tests\\": "tests/"
+        }
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^12.0",
+        "lion/test": "^3.2"
+    }
 }
